@@ -11,7 +11,7 @@ pipeline {
   stages {
     stage('Clone Repository') {
       steps {
-        git branch: 'main', url: 'https://github.com/your-repo/terraform-azure.git'
+        git branch: 'main', url: 'https://github.com/techcloud2/nss.git'
       }
     }
 
