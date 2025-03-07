@@ -8,28 +8,28 @@ resource "random_password" "password" {
 }
 
 resource "azurerm_resource_group" "rg" {
-  for_each = { for vm in var.vm_configs : vm.resource_group_name => vm if !contains(keys(azurerm_resource_group.rg), vm.resource_group_name) }
+  for_each = { for vm in var.vm_configs : vm.resource_group_name => vm if vm.create_rg }
   
   name     = each.value.resource_group_name
   location = each.value.location
 }
 
 resource "azurerm_virtual_network" "vnet" {
-  for_each = { for vm in var.vm_configs : "${vm.resource_group_name}-${vm.vnet_name}" => vm if !contains(keys(azurerm_virtual_network.vnet), "${vm.resource_group_name}-${vm.vnet_name}") }
+  for_each = { for vm in var.vm_configs : "${vm.resource_group_name}-${vm.vnet_name}" => vm if vm.create_vnet }
   
   name                = each.value.vnet_name
   location            = each.value.location
   resource_group_name = each.value.resource_group_name
-  address_space       = ["10.0.0.0/16"]
+  address_space       = [each.value.vnet_address_space]
 }
 
 resource "azurerm_subnet" "subnet" {
-  for_each = { for vm in var.vm_configs : "${vm.resource_group_name}-${vm.vnet_name}-${vm.subnet_name}" => vm if !contains(keys(azurerm_subnet.subnet), "${vm.resource_group_name}-${vm.vnet_name}-${vm.subnet_name}") }
+  for_each = { for vm in var.vm_configs : "${vm.resource_group_name}-${vm.subnet_name}" => vm if vm.create_subnet }
   
   name                 = each.value.subnet_name
   resource_group_name  = each.value.resource_group_name
   virtual_network_name = each.value.vnet_name
-  address_prefixes     = ["10.0.1.0/24"]
+  address_prefixes     = [each.value.subnet_address_prefix]
 }
 
 resource "azurerm_network_interface" "nic" {
@@ -41,7 +41,7 @@ resource "azurerm_network_interface" "nic" {
 
   ip_configuration {
     name                          = "internal"
-    subnet_id                     = azurerm_subnet.subnet["${each.value.resource_group_name}-${each.value.vnet_name}-${each.value.subnet_name}"].id
+    subnet_id                     = azurerm_subnet.subnet["${each.value.resource_group_name}-${each.value.subnet_name}"].id
     private_ip_address_allocation = "Dynamic"
   }
 }
