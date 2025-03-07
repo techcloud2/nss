@@ -6,16 +6,16 @@ variable "vm_configs" {
     os_version           = string
     location             = string
     resource_group_name  = string
-    create_rg           = bool
+    create_rg            = optional(bool, false)
     vnet_name            = string
-    create_vnet         = bool
-    vnet_address_space   = string
+    create_vnet          = optional(bool, false)
+    vnet_address_space   = optional(string, "10.0.0.0/16")
     subnet_name          = string
-    create_subnet       = bool
-    subnet_address_prefix = string
+    create_subnet        = optional(bool, false)
+    subnet_address_prefix = optional(string, "10.0.1.0/24")
     vm_size              = string
     admin_username       = string
-    admin_password       = string
+    admin_password       = optional(string) # Optional for SSH-based auth
     os_disk_type         = string
     os_disk_size         = number
 
@@ -37,5 +37,13 @@ variable "vm_configs" {
       sku       = string
       version   = string
     })
+
+    # Optional Data Disk
+    data_disks = optional(list(object({
+      disk_size_gb         = number
+      storage_account_type = string
+    })), [])
+
+    tags = optional(map(string), {}) # Optional resource tags
   }))
 }
