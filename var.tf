@@ -39,11 +39,11 @@ variable "vm_configs" {
       vm_name             = "linux-vm-1"
       os_type             = "linux"
       os_version          = "20_04-lts-gen2"
-      location            = "East US"
-      resource_group_name = "rg-linux"
+      location            = "Central India"
+      resource_group_name = "rg-x"
       vnet_name           = "vnet-linux"
       subnet_name         = "subnet-linux"
-      vm_size             = "Standard_D2s_v3"
+      vm_size             = "Standard_B1s"
       admin_username      = "azureuser"
       os_disk_type        = "Standard_LRS"
       os_disk_size        = 30
@@ -52,14 +52,14 @@ variable "vm_configs" {
       vm_name             = "windows-vm-1"
       os_type             = "windows"
       os_version          = "2019-Datacenter-smalldisk"
-      location            = "East US"
-      resource_group_name = "rg-windows"
-      vnet_name           = "vnet-windows"
+      location            = "Central India"
+      resource_group_name = "rg-x"
+      vnet_name           = "vnet-linux"
       subnet_name         = "subnet-windows"
-      vm_size             = "Standard_D4s_v3"
+      vm_size             = "Standard_B1s"
       admin_username      = "adminuser"
-      os_disk_type        = "StandardSSD_LRS"
-      os_disk_size        = 127
+      os_disk_type        = "Standard_LRS"
+      os_disk_size        = 128
     }
   ]
 }
