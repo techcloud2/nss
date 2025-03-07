@@ -38,6 +38,20 @@ vm_configs = [
       sku       = "22_04-lts-gen2"
       version   = "latest"
     }
+
+    # Optional Data Disks
+    data_disks = [
+      {
+        disk_size_gb         = 64
+        storage_account_type = "StandardSSD_LRS"
+      }
+    ]
+
+    # Optional Tags
+    tags = {
+      environment = "dev"
+      owner       = "team-1"
+    }
   },
   {
     vm_name              = "app-vm-2"
@@ -75,6 +89,15 @@ vm_configs = [
       offer     = "WindowsServer"
       sku       = "2019-Datacenter"
       version   = "latest"
+    }
+
+    # Optional Data Disks
+    data_disks = []
+
+    # Optional Tags
+    tags = {
+      environment = "prod"
+      owner       = "team-2"
     }
   }
 ]
