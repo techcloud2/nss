@@ -18,6 +18,10 @@ resource "azurerm_virtual_network" "new_vnet" {
   location            = each.value.location
   resource_group_name = each.value.resource_group_name
   address_space       = [each.value.vnet_address_space] # Ensure correct format
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Fetch existing Virtual Network
@@ -26,6 +30,7 @@ data "azurerm_virtual_network" "existing_vnet" {
 
   name                = each.value.vnet_name
   resource_group_name = each.value.resource_group_name
+  depends_on          = [azurerm_virtual_network.new_vnet] # Ensure VNet exists before reading
 }
 
 # Subnet Creation
@@ -36,6 +41,10 @@ resource "azurerm_subnet" "new_subnet" {
   resource_group_name  = each.value.resource_group_name
   virtual_network_name = azurerm_virtual_network.new_vnet[each.value.vnet_name].name
   address_prefixes     = [each.value.subnet_address_prefix] # Ensure correct format
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Fetch existing subnet
@@ -43,7 +52,10 @@ data "azurerm_subnet" "existing_subnet" {
   for_each = { for vm in var.vm_configs : vm.subnet_name => vm if !vm.create_subnet }
 
   name                 = each.value.subnet_name
-  virtual_network_name = data.azurerm_virtual_network.existing_vnet[each.value.vnet_name].name
+  virtual_network_name = lookup(merge(
+    { for vnet in azurerm_virtual_network.new_vnet : vnet.name => vnet.name },
+    { for vnet in data.azurerm_virtual_network.existing_vnet : vnet.name => vnet.name }
+  ), each.value.vnet_name, null)
   resource_group_name  = each.value.resource_group_name
   depends_on           = [azurerm_virtual_network.new_vnet] # Ensure VNet exists before reading
 }
