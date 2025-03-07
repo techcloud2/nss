@@ -1,4 +1,4 @@
-### `provider.tf`
+### provider.tf
 provider "azurerm" {
   features {}
 }
