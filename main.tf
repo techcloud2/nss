@@ -9,7 +9,20 @@ resource "azurerm_resource_group" "rg" {
   }
 }
 
-# Fetch existing VNet
+# Conditionally create a new Virtual Network or fetch an existing one
+resource "azurerm_virtual_network" "new_vnet" {
+  for_each = { for vm in var.vm_configs : vm.vnet_name => vm if vm.create_vnet }
+
+  name                = each.value.vnet_name
+  location            = each.value.location
+  resource_group_name = each.value.resource_group_name
+  address_space       = each.value.vnet_address_space
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 data "azurerm_virtual_network" "existing_vnet" {
   for_each = { for vm in var.vm_configs : vm.vnet_name => vm if !vm.create_vnet }
 
@@ -17,7 +30,16 @@ data "azurerm_virtual_network" "existing_vnet" {
   resource_group_name = each.value.resource_group_name
 }
 
-# Fetch existing subnet
+# Conditionally create a new Subnet or fetch an existing one
+resource "azurerm_subnet" "new_subnet" {
+  for_each = { for vm in var.vm_configs : vm.subnet_name => vm if vm.create_subnet }
+
+  name                 = each.value.subnet_name
+  resource_group_name  = each.value.resource_group_name
+  virtual_network_name = azurerm_virtual_network.new_vnet[each.value.vnet_name].name
+  address_prefixes     = each.value.subnet_address_prefixes
+}
+
 data "azurerm_subnet" "existing_subnet" {
   for_each = { for vm in var.vm_configs : vm.subnet_name => vm if !vm.create_subnet }
 
@@ -58,7 +80,10 @@ resource "azurerm_network_interface" "nic" {
 
   ip_configuration {
     name                          = "internal"
-    subnet_id                     = data.azurerm_subnet.existing_subnet[each.value.subnet_name].id
+    subnet_id                     = lookup(merge(
+      { for subnet in azurerm_subnet.new_subnet : subnet.name => subnet.id },
+      { for subnet in data.azurerm_subnet.existing_subnet : subnet.name => subnet.id }
+    ), each.value.subnet_name, null)
     private_ip_address_allocation = "Dynamic"
   }
 }
