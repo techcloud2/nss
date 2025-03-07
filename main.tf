@@ -89,17 +89,6 @@ resource "azurerm_linux_virtual_machine" "vm" {
     version   = each.value.os_image.version
   }
 
-  # Optional Data Disks
-  dynamic "data_disk" {
-    for_each = lookup(each.value, "data_disks", [])
-    content {
-      name                 = "${each.value.vm_name}-datadisk-${data_disk.key}"
-      disk_size_gb         = data_disk.value.disk_size_gb
-      storage_account_type = data_disk.value.storage_account_type
-      caching              = "ReadWrite"
-    }
-  }
-
   lifecycle {
     prevent_destroy = true
   }
@@ -130,18 +119,32 @@ resource "azurerm_windows_virtual_machine" "vm" {
     version   = each.value.os_image.version
   }
 
-  # Optional Data Disks
-  dynamic "data_disk" {
-    for_each = lookup(each.value, "data_disks", [])
-    content {
-      name                 = "${each.value.vm_name}-datadisk-${data_disk.key}"
-      disk_size_gb         = data_disk.value.disk_size_gb
-      storage_account_type = data_disk.value.storage_account_type
-      caching              = "ReadWrite"
-    }
-  }
-
   lifecycle {
     prevent_destroy = true
   }
+}
+
+# Managed Data Disks
+resource "azurerm_managed_disk" "data_disk" {
+  for_each = { for vm in var.vm_configs : vm.vm_name => vm if lookup(vm, "data_disks", []) != [] }
+
+  name                 = "${each.value.vm_name}-datadisk"
+  location             = each.value.location
+  resource_group_name  = each.value.resource_group_name
+  storage_account_type = each.value.os_disk_type
+  create_option        = "Empty"
+  disk_size_gb         = each.value.os_disk_size
+}
+
+resource "azurerm_virtual_machine_data_disk_attachment" "data_disk_attachment" {
+  for_each = { for vm in var.vm_configs : vm.vm_name => vm if lookup(vm, "data_disks", []) != [] }
+
+  managed_disk_id    = azurerm_managed_disk.data_disk[each.value.vm_name].id
+  virtual_machine_id = lookup(merge(
+    { for vm in azurerm_linux_virtual_machine.vm : vm.name => vm.id },
+    { for vm in azurerm_windows_virtual_machine.vm : vm.name => vm.id }
+  ), each.value.vm_name, null)
+
+  lun     = 0
+  caching = "ReadWrite"
 }
