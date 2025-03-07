@@ -16,7 +16,7 @@ resource "azurerm_virtual_network" "new_vnet" {
   name                = each.value.vnet_name
   location            = each.value.location
   resource_group_name = each.value.resource_group_name
-  address_space       = [each.value.vnet_address_space] # FIXED: Wrap in []
+  address_space       = [each.value.vnet_address_space]
 
   lifecycle {
     prevent_destroy = true
@@ -28,7 +28,7 @@ data "azurerm_virtual_network" "existing_vnet" {
 
   name                = each.value.vnet_name
   resource_group_name = each.value.resource_group_name
-  depends_on          = [azurerm_virtual_network.new_vnet] # FIXED: Ensure new VNet is created before fetching existing one
+  depends_on          = [azurerm_virtual_network.new_vnet]
 }
 
 # Conditionally create a new Subnet or fetch an existing one
@@ -38,7 +38,7 @@ resource "azurerm_subnet" "new_subnet" {
   name                 = each.value.subnet_name
   resource_group_name  = each.value.resource_group_name
   virtual_network_name = azurerm_virtual_network.new_vnet[each.value.vnet_name].name
-  address_prefixes     = [each.value.subnet_address_prefixes] # FIXED: Ensure list format
+  address_prefixes     = [each.value.subnet_address_prefix] # FIXED: Correct attribute name
 }
 
 data "azurerm_subnet" "existing_subnet" {
@@ -47,6 +47,7 @@ data "azurerm_subnet" "existing_subnet" {
   name                 = each.value.subnet_name
   virtual_network_name = data.azurerm_virtual_network.existing_vnet[each.value.vnet_name].name
   resource_group_name  = each.value.resource_group_name
+  depends_on           = [azurerm_virtual_network.new_vnet] # FIXED: Ensure the VNet is available before fetching the subnet
 }
 
 resource "azurerm_network_security_group" "nsg" {
