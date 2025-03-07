@@ -44,9 +44,9 @@ variable "vm_configs" {
       location            = "Central India"
       resource_group_name = "rg-x"
       vnet_name           = "vnet-linux"
-      create_vnet         = bool
+      create_vnet         = true
       subnet_name         = "subnet-linux"
-      create_vnet         = bool
+      create_subnet       = true
       vm_size             = "Standard_B1s"
       admin_username      = "azureuser"
       os_disk_type        = "Standard_LRS"
@@ -59,7 +59,9 @@ variable "vm_configs" {
       location            = "Central India"
       resource_group_name = "rg-x"
       vnet_name           = "vnet-linux"
+      create_vnet         = true
       subnet_name         = "subnet-windows"
+      create_subnet       = true
       vm_size             = "Standard_B1s"
       admin_username      = "adminuser"
       os_disk_type        = "Standard_LRS"
