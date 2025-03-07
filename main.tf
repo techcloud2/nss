@@ -1,5 +1,10 @@
+data "azurerm_resource_group" "existing_rg" {
+  for_each = { for vm in var.vm_configs : vm.resource_group_name => vm }
+  name     = each.value.resource_group_name
+}
+
 resource "azurerm_resource_group" "rg" {
-  for_each = { for vm in var.vm_configs : vm.vm_name => vm if vm.create_rg }
+  for_each = { for vm in var.vm_configs : vm.vm_name => vm if vm.create_rg && lookup(data.azurerm_resource_group.existing_rg, vm.resource_group_name, null) == null }
   
   name     = each.value.resource_group_name
   location = each.value.location
@@ -7,20 +12,27 @@ resource "azurerm_resource_group" "rg" {
 
 resource "azurerm_virtual_network" "vnet" {
   for_each = { for vm in var.vm_configs : vm.vnet_name => vm if vm.create_vnet }
-
+  
   name                = each.value.vnet_name
   location            = each.value.location
   resource_group_name = each.value.resource_group_name
   address_space       = [each.value.vnet_address_space]
 }
 
+data "azurerm_virtual_network" "existing_vnet" {
+  for_each = { for vm in var.vm_configs : vm.vnet_name => vm }
+  name                = each.value.vnet_name
+  resource_group_name = each.value.resource_group_name
+}
+
 resource "azurerm_subnet" "subnet" {
   for_each = { for vm in var.vm_configs : vm.subnet_name => vm if vm.create_subnet }
-
+  
   name                 = each.value.subnet_name
   resource_group_name  = each.value.resource_group_name
   virtual_network_name = each.value.vnet_name
   address_prefixes     = [each.value.subnet_address_prefix]
+  depends_on           = [azurerm_virtual_network.vnet]
 }
 
 resource "azurerm_public_ip" "public_ip" {
