@@ -1,37 +1,35 @@
-### ✅ Check if the Resource Group Already Exists
+# Fetch existing resource groups
 data "azurerm_resource_group" "existing_rg" {
   for_each = { for vm in var.vm_configs : vm.resource_group_name => vm }
-
-  name = each.value.resource_group_name
+  name     = each.value.resource_group_name
 }
 
-### ✅ Create Resource Group Only If It Does NOT Exist
+# Create resource group only if it does not exist
 resource "azurerm_resource_group" "rg" {
-  for_each = { for vm in var.vm_configs : vm.resource_group_name => vm if vm.create_rg && !contains(keys(data.azurerm_resource_group.existing_rg), vm.resource_group_name) }
-
+  for_each = { for vm in var.vm_configs : vm.resource_group_name => vm if vm.create_rg && lookup(data.azurerm_resource_group.existing_rg, vm.resource_group_name, null) == null }
+  
   name     = each.value.resource_group_name
   location = each.value.location
 }
 
-### ✅ Check if VNet Already Exists
+# Fetch existing virtual networks
 data "azurerm_virtual_network" "existing_vnet" {
   for_each = { for vm in var.vm_configs : vm.vnet_name => vm }
-  
   name                = each.value.vnet_name
   resource_group_name = each.value.resource_group_name
 }
 
-### ✅ Create VNet Only If It Does NOT Exist
+# Create virtual network only if it does not exist
 resource "azurerm_virtual_network" "vnet" {
-  for_each = { for vm in var.vm_configs : vm.vnet_name => vm if vm.create_vnet && !contains(keys(data.azurerm_virtual_network.existing_vnet), vm.vnet_name) }
-  
+  for_each = { for vm in var.vm_configs : vm.vnet_name => vm if vm.create_vnet && lookup(data.azurerm_virtual_network.existing_vnet, vm.vnet_name, null) == null }
+
   name                = each.value.vnet_name
   location            = each.value.location
   resource_group_name = each.value.resource_group_name
   address_space       = [each.value.vnet_address_space]
 }
 
-### ✅ Check if Subnet Already Exists
+# Fetch existing subnets
 data "azurerm_subnet" "existing_subnet" {
   for_each = { for vm in var.vm_configs : vm.subnet_name => vm }
 
@@ -40,18 +38,17 @@ data "azurerm_subnet" "existing_subnet" {
   resource_group_name  = each.value.resource_group_name
 }
 
-### ✅ Create Subnet Only If It Does NOT Exist
+# Create subnet only if it does not exist
 resource "azurerm_subnet" "subnet" {
-  for_each = { for vm in var.vm_configs : vm.subnet_name => vm if vm.create_subnet && !contains(keys(data.azurerm_subnet.existing_subnet), vm.subnet_name) }
-  
+  for_each = { for vm in var.vm_configs : vm.subnet_name => vm if vm.create_subnet && lookup(data.azurerm_subnet.existing_subnet, vm.subnet_name, null) == null }
+
   name                 = each.value.subnet_name
   resource_group_name  = each.value.resource_group_name
   virtual_network_name = each.value.vnet_name
   address_prefixes     = [each.value.subnet_address_prefix]
-  depends_on           = [azurerm_virtual_network.vnet]
 }
 
-### ✅ Ensure Public IP, NSG, and NIC Do Not Recreate Unnecessarily
+# Create Public IP
 resource "azurerm_public_ip" "public_ip" {
   for_each = { for vm in var.vm_configs : vm.vm_name => vm }
 
@@ -61,6 +58,7 @@ resource "azurerm_public_ip" "public_ip" {
   allocation_method   = "Static"
 }
 
+# Create NSG (Network Security Group)
 resource "azurerm_network_security_group" "nsg" {
   for_each = { for vm in var.vm_configs : vm.vm_name => vm }
 
@@ -81,6 +79,7 @@ resource "azurerm_network_security_group" "nsg" {
   }
 }
 
+# Create Network Interface
 resource "azurerm_network_interface" "nic" {
   for_each = { for vm in var.vm_configs : vm.vm_name => vm }
 
@@ -90,13 +89,13 @@ resource "azurerm_network_interface" "nic" {
 
   ip_configuration {
     name                          = "internal"
-    subnet_id                     = data.azurerm_subnet.existing_subnet[each.value.subnet_name].id
+    subnet_id                     = coalesce(lookup(data.azurerm_subnet.existing_subnet, each.value.subnet_name, null)?.id, azurerm_subnet.subnet[each.value.subnet_name].id)
     private_ip_address_allocation = "Dynamic"
     public_ip_address_id          = azurerm_public_ip.public_ip[each.value.vm_name].id
   }
 }
 
-### ✅ Create VM Without Destroying Resources
+# Create Linux Virtual Machine
 resource "azurerm_linux_virtual_machine" "vm" {
   for_each = { for vm in var.vm_configs : vm.vm_name => vm }
 
@@ -124,7 +123,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
   }
 }
 
-### ✅ Attach Data Disk to VM Without Destroying
+# Create Managed Data Disk
 resource "azurerm_managed_disk" "data_disk" {
   for_each = { for vm in var.vm_configs : vm.vm_name => vm }
 
@@ -136,6 +135,7 @@ resource "azurerm_managed_disk" "data_disk" {
   disk_size_gb         = each.value.os_disk_size
 }
 
+# Attach Data Disk to VM
 resource "azurerm_virtual_machine_data_disk_attachment" "data_disk_attachment" {
   for_each = { for vm in var.vm_configs : vm.vm_name => vm }
 
