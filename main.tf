@@ -1,109 +1,32 @@
-# Fetch existing resource groups
-data "azurerm_resource_group" "existing_rg" {
-  for_each = { for vm in var.vm_configs : vm.resource_group_name => vm }
-  name     = each.value.resource_group_name
-}
-
-# Create resource group only if it does not exist
-resource "azurerm_resource_group" "rg" {
-  for_each = { for vm in var.vm_configs : vm.resource_group_name => vm if vm.create_rg && lookup(data.azurerm_resource_group.existing_rg, vm.resource_group_name, null) == null }
-  
-  name     = each.value.resource_group_name
-  location = each.value.location
-}
-
-# Fetch existing virtual networks
-data "azurerm_virtual_network" "existing_vnet" {
-  for_each = { for vm in var.vm_configs : vm.vnet_name => vm }
-  name                = each.value.vnet_name
-  resource_group_name = each.value.resource_group_name
-}
-
-# Create virtual network only if it does not exist
-resource "azurerm_virtual_network" "vnet" {
-  for_each = { for vm in var.vm_configs : vm.vnet_name => vm if vm.create_vnet && lookup(data.azurerm_virtual_network.existing_vnet, vm.vnet_name, null) == null }
-
-  name                = each.value.vnet_name
-  location            = each.value.location
-  resource_group_name = each.value.resource_group_name
-  address_space       = [each.value.vnet_address_space]
-}
-
-# Fetch existing subnets
-data "azurerm_subnet" "existing_subnet" {
-  for_each = { for vm in var.vm_configs : vm.subnet_name => vm }
-
-  name                 = each.value.subnet_name
-  virtual_network_name = each.value.vnet_name
-  resource_group_name  = each.value.resource_group_name
-}
-
-# Create subnet only if it does not exist
-resource "azurerm_subnet" "subnet" {
-  for_each = { for vm in var.vm_configs : vm.subnet_name => vm if vm.create_subnet && lookup(data.azurerm_subnet.existing_subnet, vm.subnet_name, null) == null }
-
-  name                 = each.value.subnet_name
-  resource_group_name  = each.value.resource_group_name
-  virtual_network_name = each.value.vnet_name
-  address_prefixes     = [each.value.subnet_address_prefix]
-}
-
-# Create Public IP
-resource "azurerm_public_ip" "public_ip" {
-  for_each = { for vm in var.vm_configs : vm.vm_name => vm }
-
-  name                = "${each.value.vm_name}-pip"
-  location            = each.value.location
-  resource_group_name = each.value.resource_group_name
-  allocation_method   = "Static"
-}
-
-# Create NSG (Network Security Group)
 resource "azurerm_network_security_group" "nsg" {
   for_each = { for vm in var.vm_configs : vm.vm_name => vm }
-
   name                = "${each.value.vm_name}-nsg"
   location            = each.value.location
   resource_group_name = each.value.resource_group_name
 
-  security_rule {
-    name                       = "AllowSSH"
-    priority                   = 1001
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "22"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
+  dynamic "security_rule" {
+    for_each = each.value.security_rules
+    content {
+      name                       = security_rule.value.name
+      priority                   = security_rule.value.priority
+      direction                  = security_rule.value.direction
+      access                     = security_rule.value.access
+      protocol                   = security_rule.value.protocol
+      source_port_range          = security_rule.value.source_port_range
+      destination_port_range     = security_rule.value.destination_port_range
+      source_address_prefix      = security_rule.value.source_address_prefix
+      destination_address_prefix = security_rule.value.destination_address_prefix
+    }
   }
 }
 
-# Create Network Interface
-resource "azurerm_network_interface" "nic" {
-  for_each = { for vm in var.vm_configs : vm.vm_name => vm }
-
-  name                = "${each.value.vm_name}-nic"
-  location            = each.value.location
-  resource_group_name = each.value.resource_group_name
-
-  ip_configuration {
-    name                          = "internal"
-    subnet_id                     = coalesce(lookup(data.azurerm_subnet.existing_subnet, each.value.subnet_name, null)?.id, azurerm_subnet.subnet[each.value.subnet_name].id)
-    private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.public_ip[each.value.vm_name].id
-  }
-}
-
-# Create Linux Virtual Machine
-resource "azurerm_linux_virtual_machine" "vm" {
-  for_each = { for vm in var.vm_configs : vm.vm_name => vm }
-
-  name                = each.value.vm_name
-  location            = each.value.location
-  resource_group_name = each.value.resource_group_name
+resource "azurerm_linux_virtual_machine" "linux_vm" {
+  for_each = { for vm in var.vm_configs : vm.vm_name => vm if lower(vm.os_type) == "linux" }
+  name                  = each.value.vm_name
+  location              = each.value.location
+  resource_group_name   = each.value.resource_group_name
   network_interface_ids = [azurerm_network_interface.nic[each.value.vm_name].id]
-  size                = each.value.vm_size
+  size                  = each.value.vm_size
 
   admin_username = each.value.admin_username
   admin_password = each.value.admin_password
@@ -116,31 +39,34 @@ resource "azurerm_linux_virtual_machine" "vm" {
   }
 
   source_image_reference {
-    publisher = "Canonical"
-    offer     = "0001-com-ubuntu-server-jammy"
-    sku       = "22_04-lts-gen2"
-    version   = "latest"
+    publisher = each.value.os_image.publisher
+    offer     = each.value.os_image.offer
+    sku       = each.value.os_image.sku
+    version   = each.value.os_image.version
   }
 }
 
-# Create Managed Data Disk
-resource "azurerm_managed_disk" "data_disk" {
-  for_each = { for vm in var.vm_configs : vm.vm_name => vm }
+resource "azurerm_windows_virtual_machine" "windows_vm" {
+  for_each = { for vm in var.vm_configs : vm.vm_name => vm if lower(vm.os_type) == "windows" }
+  name                  = each.value.vm_name
+  location              = each.value.location
+  resource_group_name   = each.value.resource_group_name
+  network_interface_ids = [azurerm_network_interface.nic[each.value.vm_name].id]
+  size                  = each.value.vm_size
 
-  name                 = "${each.value.vm_name}-datadisk"
-  location             = each.value.location
-  resource_group_name  = each.value.resource_group_name
-  storage_account_type = each.value.os_disk_type
-  create_option        = "Empty"
-  disk_size_gb         = each.value.os_disk_size
-}
+  admin_username = each.value.admin_username
+  admin_password = each.value.admin_password
 
-# Attach Data Disk to VM
-resource "azurerm_virtual_machine_data_disk_attachment" "data_disk_attachment" {
-  for_each = { for vm in var.vm_configs : vm.vm_name => vm }
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = each.value.os_disk_type
+    disk_size_gb         = each.value.os_disk_size
+  }
 
-  managed_disk_id    = azurerm_managed_disk.data_disk[each.value.vm_name].id
-  virtual_machine_id = azurerm_linux_virtual_machine.vm[each.value.vm_name].id
-  lun               = 0
-  caching           = "ReadWrite"
+  source_image_reference {
+    publisher = each.value.os_image.publisher
+    offer     = each.value.os_image.offer
+    sku       = each.value.os_image.sku
+    version   = each.value.os_image.version
+  }
 }
