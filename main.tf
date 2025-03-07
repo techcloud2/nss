@@ -8,14 +8,14 @@ resource "random_password" "password" {
 }
 
 resource "azurerm_resource_group" "rg" {
-  for_each = { for vm in var.vm_configs : vm.resource_group_name => vm if vm.create_rg }
+  for_each = { for vm in var.vm_configs : vm.resource_group_name => vm if lookup(vm, "create_rg", false) }
   
   name     = each.value.resource_group_name
   location = each.value.location
 }
 
 resource "azurerm_virtual_network" "vnet" {
-  for_each = { for vm in var.vm_configs : "${vm.resource_group_name}-${vm.vnet_name}" => vm if vm.create_vnet }
+  for_each = { for vm in var.vm_configs : "${vm.resource_group_name}-${vm.vnet_name}" => vm if lookup(vm, "create_vnet", false) }
   
   name                = each.value.vnet_name
   location            = each.value.location
@@ -24,7 +24,7 @@ resource "azurerm_virtual_network" "vnet" {
 }
 
 resource "azurerm_subnet" "subnet" {
-  for_each = { for vm in var.vm_configs : "${vm.resource_group_name}-${vm.subnet_name}" => vm if vm.create_subnet }
+  for_each = { for vm in var.vm_configs : "${vm.resource_group_name}-${vm.subnet_name}" => vm if lookup(vm, "create_subnet", false) }
   
   name                 = each.value.subnet_name
   resource_group_name  = each.value.resource_group_name
