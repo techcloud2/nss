@@ -1,23 +1,29 @@
 resource "azurerm_resource_group" "rg" {
-  name     = var.resource_group_name
-  location = var.location
-  
+  for_each = { for vm in var.vm_configs : vm.resource_group_name => vm if vm.create_rg }
+
+  name     = each.value.resource_group_name
+  location = each.value.location
+
   lifecycle {
     prevent_destroy = true
   }
 }
 
-# Fetch existing VNet to avoid modifications
+# Fetch existing VNet
 data "azurerm_virtual_network" "existing_vnet" {
-  name                = var.vnet_name
-  resource_group_name = var.resource_group_name
+  for_each = { for vm in var.vm_configs : vm.vnet_name => vm if !vm.create_vnet }
+
+  name                = each.value.vnet_name
+  resource_group_name = each.value.resource_group_name
 }
 
 # Fetch existing subnet
 data "azurerm_subnet" "existing_subnet" {
-  name                 = var.subnet_name
-  virtual_network_name = data.azurerm_virtual_network.existing_vnet.name
-  resource_group_name  = var.resource_group_name
+  for_each = { for vm in var.vm_configs : vm.subnet_name => vm if !vm.create_subnet }
+
+  name                 = each.value.subnet_name
+  virtual_network_name = data.azurerm_virtual_network.existing_vnet[each.value.vnet_name].name
+  resource_group_name  = each.value.resource_group_name
 }
 
 resource "azurerm_network_security_group" "nsg" {
@@ -52,7 +58,7 @@ resource "azurerm_network_interface" "nic" {
 
   ip_configuration {
     name                          = "internal"
-    subnet_id                     = data.azurerm_subnet.existing_subnet.id
+    subnet_id                     = data.azurerm_subnet.existing_subnet[each.value.subnet_name].id
     private_ip_address_allocation = "Dynamic"
   }
 }
@@ -77,10 +83,21 @@ resource "azurerm_linux_virtual_machine" "vm" {
   }
 
   source_image_reference {
-    publisher = each.value.os_publisher
-    offer     = each.value.os_offer
-    sku       = each.value.os_sku
-    version   = each.value.os_version
+    publisher = each.value.os_image.publisher
+    offer     = each.value.os_image.offer
+    sku       = each.value.os_image.sku
+    version   = each.value.os_image.version
+  }
+
+  # Optional Data Disks
+  dynamic "data_disk" {
+    for_each = lookup(each.value, "data_disks", [])
+    content {
+      name                 = "${each.value.vm_name}-datadisk-${data_disk.key}"
+      disk_size_gb         = data_disk.value.disk_size_gb
+      storage_account_type = data_disk.value.storage_account_type
+      caching              = "ReadWrite"
+    }
   }
 
   lifecycle {
@@ -107,10 +124,21 @@ resource "azurerm_windows_virtual_machine" "vm" {
   }
 
   source_image_reference {
-    publisher = each.value.os_publisher
-    offer     = each.value.os_offer
-    sku       = each.value.os_sku
-    version   = each.value.os_version
+    publisher = each.value.os_image.publisher
+    offer     = each.value.os_image.offer
+    sku       = each.value.os_image.sku
+    version   = each.value.os_image.version
+  }
+
+  # Optional Data Disks
+  dynamic "data_disk" {
+    for_each = lookup(each.value, "data_disks", [])
+    content {
+      name                 = "${each.value.vm_name}-datadisk-${data_disk.key}"
+      disk_size_gb         = data_disk.value.disk_size_gb
+      storage_account_type = data_disk.value.storage_account_type
+      caching              = "ReadWrite"
+    }
   }
 
   lifecycle {
