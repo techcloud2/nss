@@ -19,18 +19,17 @@ variable "subscription_id" {
 }
 
 variable "vm_configs" {
-  description = "Configuration for multiple VMs"
   type = list(object({
-    vm_name              = string
-    location             = string
-    resource_group_name  = string
-    vnet_name            = string
-    subnet_name          = string
-    vm_size              = string
-    admin_username       = string
-    os_disk_size         = number
-    os_disk_type         = string
-    os_type              = string
-    os_version           = string
+    vm_name             = string
+    location            = string
+    resource_group_name = string
+    vnet_name           = string
+    subnet_name         = string
+    vm_size             = string
+    admin_username      = string
+    os_disk_size        = number
+    os_disk_type        = string
+    os_type             = string
+    os_version          = string
   }))
 }
