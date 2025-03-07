@@ -17,11 +17,9 @@ resource "azurerm_virtual_network" "new_vnet" {
   name                = each.value.vnet_name
   location            = each.value.location
   resource_group_name = each.value.resource_group_name
-  address_space       = [each.value.vnet_address_space] # Ensure correct format
+  address_space       = [each.value.vnet_address_space]
 
-  lifecycle {
-    prevent_destroy = true
-  }
+  depends_on = [azurerm_resource_group.rg]
 }
 
 # Fetch existing Virtual Network
@@ -30,7 +28,8 @@ data "azurerm_virtual_network" "existing_vnet" {
 
   name                = each.value.vnet_name
   resource_group_name = each.value.resource_group_name
-  depends_on          = [azurerm_virtual_network.new_vnet] # Ensure VNet exists before reading
+
+  depends_on = [azurerm_virtual_network.new_vnet]
 }
 
 # Subnet Creation
@@ -40,14 +39,12 @@ resource "azurerm_subnet" "new_subnet" {
   name                 = each.value.subnet_name
   resource_group_name  = each.value.resource_group_name
   virtual_network_name = azurerm_virtual_network.new_vnet[each.value.vnet_name].name
-  address_prefixes     = [each.value.subnet_address_prefix] # Ensure correct format
+  address_prefixes     = [each.value.subnet_address_prefix]
 
-  lifecycle {
-    prevent_destroy = true
-  }
+  depends_on = [azurerm_virtual_network.new_vnet]
 }
 
-# Fetch existing subnet
+# Fetch existing Subnet
 data "azurerm_subnet" "existing_subnet" {
   for_each = { for vm in var.vm_configs : vm.subnet_name => vm if !vm.create_subnet }
 
@@ -57,10 +54,11 @@ data "azurerm_subnet" "existing_subnet" {
     { for vnet in data.azurerm_virtual_network.existing_vnet : vnet.name => vnet.name }
   ), each.value.vnet_name, null)
   resource_group_name  = each.value.resource_group_name
-  depends_on           = [azurerm_virtual_network.new_vnet] # Ensure VNet exists before reading
+
+  depends_on = [azurerm_virtual_network.new_vnet]
 }
 
-# Network Security Group
+# Network Security Group (NSG)
 resource "azurerm_network_security_group" "nsg" {
   for_each = { for vm in var.vm_configs : vm.vm_name => vm }
 
@@ -68,20 +66,7 @@ resource "azurerm_network_security_group" "nsg" {
   location            = each.value.location
   resource_group_name = each.value.resource_group_name
 
-  dynamic "security_rule" {
-    for_each = each.value.security_rules
-    content {
-      name                       = security_rule.value.name
-      priority                   = security_rule.value.priority
-      direction                  = security_rule.value.direction
-      access                     = security_rule.value.access
-      protocol                   = security_rule.value.protocol
-      source_port_range          = security_rule.value.source_port_range
-      destination_port_range     = security_rule.value.destination_port_range
-      source_address_prefix      = security_rule.value.source_address_prefix
-      destination_address_prefix = security_rule.value.destination_address_prefix
-    }
-  }
+  depends_on = [azurerm_resource_group.rg]
 }
 
 # Network Interface
@@ -100,6 +85,8 @@ resource "azurerm_network_interface" "nic" {
     ), each.value.subnet_name, null)
     private_ip_address_allocation = "Dynamic"
   }
+
+  depends_on = [azurerm_subnet.new_subnet, data.azurerm_subnet.existing_subnet]
 }
 
 # Linux Virtual Machine
@@ -129,9 +116,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
     version   = each.value.os_image.version
   }
 
-  lifecycle {
-    prevent_destroy = true
-  }
+  depends_on = [azurerm_network_interface.nic]
 }
 
 # Windows Virtual Machine
@@ -160,7 +145,5 @@ resource "azurerm_windows_virtual_machine" "vm" {
     version   = each.value.os_image.version
   }
 
-  lifecycle {
-    prevent_destroy = true
-  }
+  depends_on = [azurerm_network_interface.nic]
 }
