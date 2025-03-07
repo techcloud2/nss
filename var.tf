@@ -27,7 +27,9 @@ variable "vm_configs" {
     location             = string
     resource_group_name  = string
     vnet_name            = string
+    create_vnet          = bool
     subnet_name          = string
+    create_subnet        = bool
     vm_size              = string
     admin_username       = string
     os_disk_type         = string
@@ -42,7 +44,9 @@ variable "vm_configs" {
       location            = "Central India"
       resource_group_name = "rg-x"
       vnet_name           = "vnet-linux"
+      create_vnet         = bool
       subnet_name         = "subnet-linux"
+      create_vnet         = bool
       vm_size             = "Standard_B1s"
       admin_username      = "azureuser"
       os_disk_type        = "Standard_LRS"
