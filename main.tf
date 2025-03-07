@@ -1,62 +1,38 @@
 ### `main.tf`
-
-resource "random_password" "password" {
-  for_each = { for vm in var.vm_configs : vm.vm_name => vm }
-  length           = 16
-  special          = true
-  override_special = "!@#"
-}
-
 resource "azurerm_resource_group" "rg" {
-  for_each = { for vm in var.vm_configs : vm.resource_group_name => vm if lookup(vm, "create_rg", false) }
+  count = var.vm_configs[*].create_rg ? 1 : 0
   
-  name     = each.value.resource_group_name
-  location = each.value.location
+  name     = var.vm_configs[0].resource_group_name
+  location = var.vm_configs[0].location
 }
 
 resource "azurerm_virtual_network" "vnet" {
-  for_each = { for vm in var.vm_configs : "${vm.resource_group_name}-${vm.vnet_name}" => vm if lookup(vm, "create_vnet", false) }
+  count = var.vm_configs[*].create_vnet ? 1 : 0
   
-  name                = each.value.vnet_name
-  location            = each.value.location
-  resource_group_name = each.value.resource_group_name
-  address_space       = [each.value.vnet_address_space]
+  name                = var.vm_configs[0].vnet_name
+  location            = var.vm_configs[0].location
+  resource_group_name = var.vm_configs[0].resource_group_name
+  address_space       = [var.vm_configs[0].vnet_address_space]
 }
 
 resource "azurerm_subnet" "subnet" {
-  for_each = { for vm in var.vm_configs : "${vm.resource_group_name}-${vm.subnet_name}" => vm if lookup(vm, "create_subnet", false) }
+  count = var.vm_configs[*].create_subnet ? 1 : 0
   
-  name                 = each.value.subnet_name
-  resource_group_name  = each.value.resource_group_name
-  virtual_network_name = each.value.vnet_name
-  address_prefixes     = [each.value.subnet_address_prefix]
+  name                 = var.vm_configs[0].subnet_name
+  resource_group_name  = var.vm_configs[0].resource_group_name
+  virtual_network_name = var.vm_configs[0].vnet_name
+  address_prefixes     = [var.vm_configs[0].subnet_address_prefix]
 }
 
-resource "azurerm_network_interface" "nic" {
-  for_each = { for vm in var.vm_configs : vm.vm_name => vm }
-  
-  name                = "${each.value.vm_name}-nic"
-  location            = each.value.location
-  resource_group_name = each.value.resource_group_name
+resource "azurerm_linux_virtual_machine" "vm" {
+  for_each = { for idx, vm in var.vm_configs : idx => vm }
 
-  ip_configuration {
-    name                          = "internal"
-    subnet_id                     = azurerm_subnet.subnet["${each.value.resource_group_name}-${each.value.subnet_name}"].id
-    private_ip_address_allocation = "Dynamic"
-  }
-}
-
-resource "azurerm_linux_virtual_machine" "linux_vm" {
-  for_each = { for vm in var.vm_configs : vm.vm_name => vm if vm.os_type == "linux" }
-  
   name                  = each.value.vm_name
   resource_group_name   = each.value.resource_group_name
   location              = each.value.location
   size                  = each.value.vm_size
   admin_username        = each.value.admin_username
-  admin_password        = random_password.password[each.value.vm_name].result
-  disable_password_authentication = false
-  network_interface_ids = [azurerm_network_interface.nic[each.value.vm_name].id]
+  network_interface_ids = [azurerm_network_interface.nic[each.key].id]
 
   os_disk {
     caching              = "ReadWrite"
@@ -72,27 +48,16 @@ resource "azurerm_linux_virtual_machine" "linux_vm" {
   }
 }
 
-resource "azurerm_windows_virtual_machine" "windows_vm" {
-  for_each = { for vm in var.vm_configs : vm.vm_name => vm if vm.os_type == "windows" }
-  
-  name                  = each.value.vm_name
-  resource_group_name   = each.value.resource_group_name
-  location              = each.value.location
-  size                  = each.value.vm_size
-  admin_username        = each.value.admin_username
-  admin_password        = random_password.password[each.value.vm_name].result
-  network_interface_ids = [azurerm_network_interface.nic[each.value.vm_name].id]
+resource "azurerm_network_interface" "nic" {
+  for_each = { for idx, vm in var.vm_configs : idx => vm }
 
-  os_disk {
-    caching              = "ReadWrite"
-    storage_account_type = each.value.os_disk_type
-    disk_size_gb         = each.value.os_disk_size
-  }
+  name                = "nic-${each.value.vm_name}"
+  resource_group_name = each.value.resource_group_name
+  location            = each.value.location
 
-  source_image_reference {
-    publisher = "MicrosoftWindowsServer"
-    offer     = "WindowsServer"
-    sku       = each.value.os_version
-    version   = "latest"
+  ip_configuration {
+    name                          = "ipconfig"
+    subnet_id                     = azurerm_subnet.subnet[0].id
+    private_ip_address_allocation = "Dynamic"
   }
 }
