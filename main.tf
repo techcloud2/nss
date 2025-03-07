@@ -1,5 +1,3 @@
-### `main.tf`
-
 resource "random_password" "password" {
   for_each = { for vm in var.vm_configs : vm.vm_name => vm }
   length           = 16
@@ -9,14 +7,14 @@ resource "random_password" "password" {
 
 resource "azurerm_resource_group" "rg" {
   for_each = { for vm in var.vm_configs : vm.resource_group_name => vm }
-  
+
   name     = each.value.resource_group_name
   location = each.value.location
 }
 
 resource "azurerm_virtual_network" "vnet" {
-  for_each = { for vm in var.vm_configs : vm.vnet_name => vm }
-  
+  for_each = { for vm in var.vm_configs : "${vm.resource_group_name}-${vm.vnet_name}" => vm }
+
   name                = each.value.vnet_name
   location            = each.value.location
   resource_group_name = each.value.resource_group_name
@@ -24,31 +22,31 @@ resource "azurerm_virtual_network" "vnet" {
 }
 
 resource "azurerm_subnet" "subnet" {
-  for_each = { for vm in var.vm_configs : vm.subnet_name => vm }
-  
+  for_each = { for vm in var.vm_configs : "${vm.resource_group_name}-${vm.vnet_name}-${vm.subnet_name}" => vm }
+
   name                 = each.value.subnet_name
   resource_group_name  = each.value.resource_group_name
-  virtual_network_name = each.value.vnet_name
+  virtual_network_name = azurerm_virtual_network.vnet["${each.value.resource_group_name}-${each.value.vnet_name}"].name
   address_prefixes     = ["10.0.1.0/24"]
 }
 
 resource "azurerm_network_interface" "nic" {
   for_each = { for vm in var.vm_configs : vm.vm_name => vm }
-  
+
   name                = "${each.value.vm_name}-nic"
   location            = each.value.location
   resource_group_name = each.value.resource_group_name
 
   ip_configuration {
     name                          = "internal"
-    subnet_id                     = azurerm_subnet.subnet[each.value.subnet_name].id
+    subnet_id                     = azurerm_subnet.subnet["${each.value.resource_group_name}-${each.value.vnet_name}-${each.value.subnet_name}"].id
     private_ip_address_allocation = "Dynamic"
   }
 }
 
 resource "azurerm_linux_virtual_machine" "linux_vm" {
   for_each = { for vm in var.vm_configs : vm.vm_name => vm if vm.os_type == "linux" }
-  
+
   name                  = each.value.vm_name
   resource_group_name   = each.value.resource_group_name
   location              = each.value.location
@@ -74,7 +72,7 @@ resource "azurerm_linux_virtual_machine" "linux_vm" {
 
 resource "azurerm_windows_virtual_machine" "windows_vm" {
   for_each = { for vm in var.vm_configs : vm.vm_name => vm if vm.os_type == "windows" }
-  
+
   name                  = each.value.vm_name
   resource_group_name   = each.value.resource_group_name
   location              = each.value.location

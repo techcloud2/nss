@@ -2,10 +2,10 @@ vm_configs = [
   {
     vm_name             = "linux-vm-1"
     location            = "Central India"
-    resource_group_name = "rg-linux"
-    vnet_name           = "vnet-linux"
+    resource_group_name = "rg-x"
+    vnet_name           = "vnet-x"
     subnet_name         = "subnet-linux"
-    vm_size             = "Standard_b1s"
+    vm_size             = "Standard_B1s"
     admin_username      = "azureuser"
     os_disk_size        = 32
     os_disk_type        = "Standard_LRS"
@@ -15,10 +15,10 @@ vm_configs = [
   {
     vm_name             = "windows-vm-1"
     location            = "Central India"
-    resource_group_name = "rg-linux"
-    vnet_name           = "vnet-linux"
+    resource_group_name = "rg-x"
+    vnet_name           = "vnet-x"
     subnet_name         = "subnet-windows"
-    vm_size             = "Standard_b1s"
+    vm_size             = "Standard_B1s"
     admin_username      = "winadmin"
     os_disk_size        = 128
     os_disk_type        = "Standard_LRS"
