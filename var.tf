@@ -38,6 +38,9 @@ variable "vm_configs" {
     admin_password       = optional(string) # Optional for SSH-based auth
     os_disk_type         = string
     os_disk_size         = number
+    create_data_disk     = bool
+    data_disk_type       = string
+    data_disk_size       = number
 
     security_rules = list(object({
       name                       = string
