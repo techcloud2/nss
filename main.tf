@@ -147,3 +147,34 @@ resource "azurerm_windows_virtual_machine" "vm" {
 
   depends_on = [azurerm_network_interface.nic]
 }
+
+# Managed Data Disk Creation
+resource "azurerm_managed_disk" "data_disk" {
+  for_each = { for vm in var.vm_configs : vm.vm_name => vm if vm.create_data_disk }
+
+  name                 = "${each.value.vm_name}-datadisk"
+  location             = each.value.location
+  resource_group_name  = each.value.resource_group_name
+  storage_account_type = each.value.data_disk_type
+  disk_size_gb         = each.value.data_disk_size
+  create_option        = "Empty"
+
+  depends_on = [azurerm_resource_group.rg]
+}
+
+# Attach Data Disk to VMs
+resource "azurerm_virtual_machine_data_disk_attachment" "data_disk_attach" {
+  for_each = { for vm in var.vm_configs : vm.vm_name => vm if vm.create_data_disk }
+
+  managed_disk_id    = azurerm_managed_disk.data_disk[each.value.vm_name].id
+  virtual_machine_id = lookup(merge(
+    { for vm in azurerm_linux_virtual_machine.vm : vm.name => vm.id },
+    { for vm in azurerm_windows_virtual_machine.vm : vm.name => vm.id }
+  ), each.value.vm_name, null)
+
+  lun          = 0
+  caching      = "ReadWrite"
+  disk_size_gb = each.value.data_disk_size
+
+  depends_on = [azurerm_linux_virtual_machine.vm, azurerm_windows_virtual_machine.vm]
+}
