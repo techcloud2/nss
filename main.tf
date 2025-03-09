@@ -172,9 +172,8 @@ resource "azurerm_virtual_machine_data_disk_attachment" "data_disk_attach" {
     { for vm in azurerm_windows_virtual_machine.vm : vm.name => vm.id }
   ), each.value.vm_name, null)
 
-  lun          = 0
-  caching      = "ReadWrite"
-  disk_size_gb = each.value.data_disk_size
+  lun     = 0
+  caching = "ReadWrite"
 
   depends_on = [azurerm_linux_virtual_machine.vm, azurerm_windows_virtual_machine.vm]
 }
