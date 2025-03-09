@@ -1,23 +1,26 @@
 vm_configs = [
   {
-    vm_name              = "app-vm-1"
+    vm_name              = "app-vm"
     os_type              = "Linux"
     os_version           = "22.04"
     location             = "Central India"
-    resource_group_name  = "ttms-rg-1"
+    resource_group_name  = "ttms-rg"
     create_rg           = true
-    vnet_name            = "ttms-vnet-1"
+    vnet_name            = "ttms-vnet"
     create_vnet         = true
     vnet_address_space   = "10.0.0.0/16"
-    subnet_name          = "app-subnet-1"
+    subnet_name          = "app-subnet"
     create_subnet       = true
     subnet_address_prefix = "10.0.1.0/24"
-    vm_size              = "Standard_B1s"
+    vm_size              = "Standard_D16as_v5"
     admin_username       = "azureuser"
-    admin_password       = "YourPassword1"
-    os_disk_type         = "Standard_LRS"
-    os_disk_size         = 32
-
+    admin_password       = "easypeasy@123"
+    os_disk_type         = "StandardSSD_LRS"
+    os_disk_size         = 128
+    create_data_disk     = true
+    data_disk_type       = "StandardSSD_LRS"
+    data_disk_size       = 2048
+  },
     security_rules = [
       {
         name                       = "AllowSSH"
@@ -39,14 +42,6 @@ vm_configs = [
       version   = "latest"
     }
 
-    # Optional Data Disks
-    data_disks = [
-      {
-        disk_size_gb         = 64
-        storage_account_type = "StandardSSD_LRS"
-      }
-    ]
-
     # Optional Tags
     tags = {
       environment = "dev"
@@ -65,11 +60,14 @@ vm_configs = [
     subnet_name          = "app-subnet-2"
     create_subnet       = true
     subnet_address_prefix = "10.0.0.0/24"
-    vm_size              = "Standard_B1s"
+    vm_size              = "Standard_D16as_v5"
     admin_username       = "azureuser"
     admin_password       = "YourPassword2"
-    os_disk_type         = "Standard_LRS"
+    os_disk_type         = "StandardSSD_LRS"
     os_disk_size         = 128
+    create_data_disk     = true
+    data_disk_type       = "StandardSSD_LRS"
+    data_disk_size       = 512
 
     security_rules = [
       {
