@@ -146,3 +146,4 @@ vm_configs = [
       owner       = "team-1"
     }
   }
+]
