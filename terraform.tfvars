@@ -145,4 +145,4 @@ vm_configs = [
       environment = "db"
       owner       = "team-1"
     }
-  },
+  }
