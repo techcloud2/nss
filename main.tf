@@ -24,10 +24,10 @@ resource "azurerm_virtual_network" "new_vnet" {
 
 # Fetch existing Virtual Network
 data "azurerm_virtual_network" "existing_vnet" {
-  for_each = { for vm in var.vm_configs : vm.vnet_name => vm if !vm.create_vnet }
+  for_each = { for vm in var.vm_configs : "${vm.vnet_name}-${vm.resource_group_name}" => vm... if !vm.create_vnet }
 
-  name                = each.value.vnet_name
-  resource_group_name = each.value.resource_group_name
+name                = each.value[0].vnet_name
+resource_group_name = each.value[0].resource_group_name
 
   depends_on = [azurerm_virtual_network.new_vnet]
 }
@@ -46,16 +46,16 @@ resource "azurerm_subnet" "new_subnet" {
 
 # Fetch existing Subnet
 data "azurerm_subnet" "existing_subnet" {
-  for_each = { for vm in var.vm_configs : vm.subnet_name => vm if !vm.create_subnet }
+  for_each = {
+    for vm in var.vm_configs :
+    vm.subnet_name => vm
+    if !vm.create_subnet &&
+    contains(keys(data.azurerm_virtual_network.existing_vnet), vm.vnet_name)
+  }
 
   name                 = each.value.subnet_name
-  virtual_network_name = lookup(merge(
-    { for vnet in azurerm_virtual_network.new_vnet : vnet.name => vnet.name },
-    { for vnet in data.azurerm_virtual_network.existing_vnet : vnet.name => vnet.name }
-  ), each.value.vnet_name, null)
+  virtual_network_name = each.value.vnet_name
   resource_group_name  = each.value.resource_group_name
-
-  depends_on = [azurerm_virtual_network.new_vnet]
 }
 
 # Network Security Group (NSG)
@@ -65,6 +65,19 @@ resource "azurerm_network_security_group" "nsg" {
   name                = "${each.value.vm_name}-nsg"
   location            = each.value.location
   resource_group_name = each.value.resource_group_name
+
+  depends_on = [azurerm_resource_group.rg]
+}
+
+#pip
+resource "azurerm_public_ip" "public_ip" {
+  for_each = { for vm in var.vm_configs : vm.vm_name => vm if vm.create_public_ip }
+
+  name                = "${each.value.vm_name}-public-ip"
+  location            = each.value.location
+  resource_group_name = each.value.resource_group_name
+  allocation_method   = "Static"
+  sku                 = "Standard" # Standard supports zone redundancy
 
   depends_on = [azurerm_resource_group.rg]
 }
@@ -84,9 +97,12 @@ resource "azurerm_network_interface" "nic" {
       { for subnet in data.azurerm_subnet.existing_subnet : subnet.name => subnet.id }
     ), each.value.subnet_name, null)
     private_ip_address_allocation = "Dynamic"
+
+    # ✅ Attach Public IP if 'create_public_ip' is true
+    public_ip_address_id = contains(keys(azurerm_public_ip.public_ip), each.key) ? azurerm_public_ip.public_ip[each.key].id : null
   }
 
-  depends_on = [azurerm_subnet.new_subnet, data.azurerm_subnet.existing_subnet]
+  depends_on = [azurerm_subnet.new_subnet, data.azurerm_subnet.existing_subnet, azurerm_public_ip.public_ip]
 }
 
 # Linux Virtual Machine

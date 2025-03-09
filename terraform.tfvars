@@ -20,6 +20,7 @@ vm_configs = [
     create_data_disk     = true
     data_disk_type       = "StandardSSD_LRS"
     data_disk_size       = 2048
+    create_public_ip     = true
 
     security_rules = [
       {
@@ -57,7 +58,7 @@ vm_configs = [
     create_rg           = false
     vnet_name            = "ttms-vnet"
     create_vnet         = false
-    vnet_address_space   = "10.0.0.0/16"
+    vnet_address_space   = ""
     subnet_name          = "app-subnet"
     create_subnet       = false
     subnet_address_prefix = "10.0.1.0/24"
@@ -69,6 +70,7 @@ vm_configs = [
     create_data_disk     = true
     data_disk_type       = "StandardSSD_LRS"
     data_disk_size       = 128
+    create_public_ip     = true
 
     security_rules = [
       {
@@ -106,7 +108,7 @@ vm_configs = [
     create_rg           = false
     vnet_name            = "ttms-vnet"
     create_vnet         = false
-    vnet_address_space   = "10.0.0.0/16"
+    vnet_address_space   = ""
     subnet_name          = "db-subnet"
     create_subnet       = true
     subnet_address_prefix = "10.0.0.0/24"
@@ -118,6 +120,7 @@ vm_configs = [
     create_data_disk     = true
     data_disk_type       = "StandardSSD_LRS"
     data_disk_size       = 512
+    create_public_ip     = true
 
     security_rules = [
       {

@@ -29,7 +29,7 @@ variable "vm_configs" {
     create_rg            = optional(bool, false)
     vnet_name            = string
     create_vnet          = optional(bool, false)
-    vnet_address_space   = optional(string, "10.0.0.0/16")
+    vnet_address_space   = optional(string)
     subnet_name          = string
     create_subnet        = optional(bool, false)
     subnet_address_prefix = optional(string, "10.0.1.0/24")
@@ -41,6 +41,7 @@ variable "vm_configs" {
     create_data_disk     = bool
     data_disk_type       = string
     data_disk_size       = number
+    create_public_ip     = optional(bool, false)
 
     security_rules = list(object({
       name                       = string
