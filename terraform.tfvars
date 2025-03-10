@@ -17,13 +17,13 @@ vm_configs = [
     generate_password    = "true"
     os_disk_type         = "Standard_LRS"
     os_disk_size         = 30
-    create_data_disk     = true
-    data_disk_type       = "Standard_LRS"
-    data_disk_size       = 30
-    create_data_disk     = true
-    data_disk_type       = "Standard_LRS"
-    data_disk_size       = 30
     create_public_ip     = true
+    create_data_disks   = true  
+    data_disks = [
+      { name = "app-vm-data1", size_gb = 30, disk_type = "Standard_LRS" },
+      { name = "app-vm-data2", size_gb = 30, disk_type = "Standard_LRS" }
+    ]
+    
 
     security_rules = [
       {
@@ -45,11 +45,4 @@ vm_configs = [
       sku       = "22_04-lts-gen2"
       version   = "latest"
     }
-
-    # Optional Tags
-    tags = {
-      environment = "dev"
-      owner       = "team-1"
-    }
-  }
 ]
