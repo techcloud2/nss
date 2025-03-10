@@ -14,7 +14,7 @@ vm_configs = [
     subnet_address_prefix = "10.0.1.0/24"
     vm_size              = "Standard_B4ms"
     admin_username       = "azureuser"
-    generate_password    = "true"
+    generate_password    = true
     os_disk_type         = "Standard_LRS"
     os_disk_size         = 30
     create_public_ip     = true
@@ -33,7 +33,7 @@ vm_configs = [
         access                     = "Allow"
         protocol                   = "Tcp"
         source_port_range          = "*"
-        destination_port_range     = "22,443,5432"
+        destination_port_range     = "22"
         source_address_prefix      = "1.22.26.90"
         destination_address_prefix = "*"
       }
