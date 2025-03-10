@@ -64,5 +64,5 @@ variable "vm_configs" {
       sku       = string
       version   = string
     })
-
+  }))
 }
