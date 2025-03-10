@@ -58,16 +58,7 @@ data "azurerm_subnet" "existing_subnet" {
   resource_group_name  = each.value.resource_group_name
 }
 
-# Network Security Group (NSG)
-resource "azurerm_network_security_group" "nsg" {
-  for_each = { for vm in var.vm_configs : vm.vm_name => vm }
 
-  name                = "${each.value.vm_name}-nsg"
-  location            = each.value.location
-  resource_group_name = each.value.resource_group_name
-
-  depends_on = [azurerm_resource_group.rg]
-}
 
 #pip
 resource "azurerm_public_ip" "public_ip" {
@@ -105,6 +96,48 @@ resource "azurerm_network_interface" "nic" {
   depends_on = [azurerm_subnet.new_subnet, data.azurerm_subnet.existing_subnet, azurerm_public_ip.public_ip]
 }
 
+# Network Security Group (NSG)
+resource "azurerm_network_security_group" "nsg" {
+  for_each = { for vm in var.vm_configs : vm.vm_name => vm }
+
+  name                = "${each.value.vm_name}-nsg"
+  location            = each.value.location
+  resource_group_name = each.value.resource_group_name
+
+  depends_on = [azurerm_resource_group.rg]
+}
+
+# Attach NSG to each VM's NIC
+resource "azurerm_network_interface_security_group_association" "nic_nsg_association" {
+  for_each = { for vm in var.vm_configs : vm.vm_name => vm }
+
+  network_interface_id      = azurerm_network_interface.nic[each.value.vm_name].id
+  network_security_group_id = azurerm_network_security_group.nsg[each.value.vm_name].id
+}
+
+# Random Password Generator
+resource "random_password" "vm_password" {
+  for_each = { for vm in var.vm_configs : vm.vm_name => vm if vm.generate_password }
+
+  length           = 16
+  special         = true
+  override_special = "!@#"
+}
+
+# Credential
+resource "local_file" "vm_credentials" {
+  content  = join("\n", [for vm in var.vm_configs : <<EOT
+VM Name: ${vm.vm_name}
+Private IP: ${lookup(azurerm_network_interface.nic[vm.vm_name].ip_configuration[0], "private_ip_address", "N/A")}
+Password: ${lookup(random_password.vm_password, vm.vm_name, {}).result}
+Resource Group: ${vm.resource_group_name}
+Location: ${vm.location}
+----------------------------
+EOT
+  ])
+  filename = "credential.txt"
+}
+
 # Linux Virtual Machine
 resource "azurerm_linux_virtual_machine" "vm" {
   for_each = { for vm in var.vm_configs : vm.vm_name => vm if vm.os_type == "Linux" }
@@ -116,7 +149,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
   size                  = each.value.vm_size
 
   admin_username                  = each.value.admin_username
-  admin_password                  = each.value.admin_password
+  admin_password = lookup(random_password.vm_password, each.key, {}).result
   disable_password_authentication = false
 
   os_disk {
@@ -131,11 +164,9 @@ resource "azurerm_linux_virtual_machine" "vm" {
     sku       = each.value.os_image.sku
     version   = each.value.os_image.version
   }
-
-  depends_on = [azurerm_network_interface.nic]
 }
 
-# Windows Virtual Machine
+# Window Virtual Machine
 resource "azurerm_windows_virtual_machine" "vm" {
   for_each = { for vm in var.vm_configs : vm.vm_name => vm if vm.os_type == "Windows" }
 
@@ -146,7 +177,7 @@ resource "azurerm_windows_virtual_machine" "vm" {
   size                  = each.value.vm_size
 
   admin_username = each.value.admin_username
-  admin_password = each.value.admin_password
+  admin_password = lookup(random_password.vm_password, each.key, {}).result
 
   os_disk {
     caching              = "ReadWrite"
@@ -160,8 +191,6 @@ resource "azurerm_windows_virtual_machine" "vm" {
     sku       = each.value.os_image.sku
     version   = each.value.os_image.version
   }
-
-  depends_on = [azurerm_network_interface.nic]
 }
 
 # Managed Data Disk Creation

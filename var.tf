@@ -35,7 +35,7 @@ variable "vm_configs" {
     subnet_address_prefix = optional(string, "10.0.1.0/24")
     vm_size              = string
     admin_username       = string
-    admin_password       = optional(string) # Optional for SSH-based auth
+    generate_password    = optional(bool, false)
     os_disk_type         = string
     os_disk_size         = number
     create_data_disk     = bool
