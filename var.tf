@@ -39,12 +39,12 @@ variable "vm_configs" {
     os_disk_type         = string
     os_disk_size         = number
     create_public_ip     = optional(bool, false)
-    create_data_disk     = bool
-    data_disks = list(object({
-    name        = string
-    size_gb     = number
-    disk_type   = string
-    }))
+    create_data_disks    = bool  
+    data_disks = optional(list(object({
+      name      = string
+      size_gb   = number
+      disk_type = string
+    })), [])
     
     security_rules = list(object({
       name                       = string
