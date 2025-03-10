@@ -45,4 +45,4 @@ vm_configs = [
       sku       = "22_04-lts-gen2"
       version   = "latest"
     }
-]
+}]
