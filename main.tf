@@ -193,31 +193,37 @@ resource "azurerm_windows_virtual_machine" "vm" {
   }
 }
 
-# Managed Data Disk Creation
-resource "azurerm_managed_disk" "data_disk" {
-  for_each = { for vm in var.vm_configs : vm.vm_name => vm if vm.create_data_disk }
+resource "azurerm_managed_disk" "data_disks" {
+  for_each = { for entry in flatten([
+    for vm in var.vm_configs : [
+      for disk in vm.data_disks : {
+        key      = "${vm.vm_name}-${disk.name}"
+        vm_name  = vm.vm_name
+        location = vm.location
+        rg_name  = vm.resource_group_name
+        disk
+      }
+    ]
+  ]) : entry.key => entry }
 
-  name                 = "${each.value.vm_name}-datadisk"
+  name                 = each.value.disk.name
   location             = each.value.location
-  resource_group_name  = each.value.resource_group_name
-  storage_account_type = each.value.data_disk_type
-  disk_size_gb         = each.value.data_disk_size
+  resource_group_name  = each.value.rg_name
+  storage_account_type = each.value.disk.disk_type
+  disk_size_gb         = each.value.disk.size_gb
   create_option        = "Empty"
-
-  depends_on = [azurerm_resource_group.rg]
 }
 
-# Attach Data Disk to VMs
-resource "azurerm_virtual_machine_data_disk_attachment" "data_disk_attach" {
-  for_each = { for vm in var.vm_configs : vm.vm_name => vm if vm.create_data_disk }
+resource "azurerm_virtual_machine_data_disk_attachment" "attach_disks" {
+  for_each = azurerm_managed_disk.data_disks
 
-  managed_disk_id    = azurerm_managed_disk.data_disk[each.value.vm_name].id
+  managed_disk_id    = each.value.id
   virtual_machine_id = lookup(merge(
     { for vm in azurerm_linux_virtual_machine.vm : vm.name => vm.id },
     { for vm in azurerm_windows_virtual_machine.vm : vm.name => vm.id }
-  ), each.value.vm_name, null)
+  ), split("-", each.key)[0], null)
 
-  lun     = 0
+  lun     = index(keys(azurerm_managed_disk.data_disks), each.key)
   caching = "ReadWrite"
 
   depends_on = [azurerm_linux_virtual_machine.vm, azurerm_windows_virtual_machine.vm]
