@@ -202,19 +202,22 @@ resource "azurerm_managed_disk" "data_disks" {
           vm_name  = vm.vm_name
           location = vm.location
           rg_name  = vm.resource_group_name
-          disk
+          disk_name = disk.name
+          disk_size_gb = disk.size_gb
+          disk_type = disk.disk_type
         }
       ] : []
     )
   ]) : entry.key => entry }
 
-  name                 = each.value.disk.name
+  name                 = each.value.disk_name
   location             = each.value.location
   resource_group_name  = each.value.rg_name
-  storage_account_type = each.value.disk.disk_type
-  disk_size_gb         = each.value.disk.size_gb
+  storage_account_type = each.value.disk_type
+  disk_size_gb         = each.value.disk_size_gb
   create_option        = "Empty"
 }
+
 
 resource "azurerm_virtual_machine_data_disk_attachment" "attach_disks" {
   for_each = azurerm_managed_disk.data_disks
