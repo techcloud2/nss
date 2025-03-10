@@ -195,15 +195,17 @@ resource "azurerm_windows_virtual_machine" "vm" {
 
 resource "azurerm_managed_disk" "data_disks" {
   for_each = { for entry in flatten([
-    for vm in var.vm_configs : [
-      for disk in vm.data_disks : {
-        key      = "${vm.vm_name}-${disk.name}"
-        vm_name  = vm.vm_name
-        location = vm.location
-        rg_name  = vm.resource_group_name
-        disk
-      }
-    ]
+    for vm in var.vm_configs : (
+      vm.create_data_disks ? [
+        for disk in vm.data_disks : {
+          key      = "${vm.vm_name}-${disk.name}"
+          vm_name  = vm.vm_name
+          location = vm.location
+          rg_name  = vm.resource_group_name
+          disk
+        }
+      ] : []
+    )
   ]) : entry.key => entry }
 
   name                 = each.value.disk.name
