@@ -223,10 +223,10 @@ resource "azurerm_virtual_machine_data_disk_attachment" "attach_disks" {
   for_each = azurerm_managed_disk.data_disks
 
   managed_disk_id    = each.value.id
-  virtual_machine_id = lookup(merge(
-    { for vm in azurerm_linux_virtual_machine.vm : vm.name => vm.id },
-    { for vm in azurerm_windows_virtual_machine.vm : vm.name => vm.id }
-  ), split("-", each.key)[0], null)
+virtual_machine_id = lookup(merge(
+  { for vm in azurerm_linux_virtual_machine.vm : vm.name => vm.id },
+  { for vm in azurerm_windows_virtual_machine.vm : vm.name => vm.id }
+), each.value.vm_name, null)
 
   lun     = index(keys(azurerm_managed_disk.data_disks), each.key)
   caching = "ReadWrite"
