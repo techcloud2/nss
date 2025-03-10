@@ -38,11 +38,14 @@ variable "vm_configs" {
     generate_password    = optional(bool, false)
     os_disk_type         = string
     os_disk_size         = number
-    create_data_disk     = bool
-    data_disk_type       = string
-    data_disk_size       = number
     create_public_ip     = optional(bool, false)
-
+    create_data_disk     = bool
+    data_disks = list(object({
+    name        = string
+    size_gb     = number
+    disk_type   = string
+    }))
+    
     security_rules = list(object({
       name                       = string
       priority                   = number
@@ -62,12 +65,4 @@ variable "vm_configs" {
       version   = string
     })
 
-    # Optional Data Disk
-    data_disks = optional(list(object({
-      disk_size_gb         = number
-      storage_account_type = string
-    })), [])
-
-    tags = optional(map(string), {}) # Optional resource tags
-  }))
 }
